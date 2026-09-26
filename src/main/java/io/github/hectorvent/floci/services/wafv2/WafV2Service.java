@@ -505,9 +505,6 @@ public class WafV2Service {
             throw new AwsException("WAFInvalidParameterException",
                     "Scope must be CLOUDFRONT or REGIONAL.", 400);
         }
-        if ("CLOUDFRONT".equals(scope)) {
-            cloudFrontPartition(regionResolver.getRegion());
-        }
     }
 
     private void requireName(String name) {
@@ -635,8 +632,16 @@ public class WafV2Service {
     }
 
     /**
+     * Refuses the CLOUDFRONT scope for a request sent to a partition without CloudFront, for every
+     * operation, so a List or Get answers the same error a Create does.
+     */
+    public void requireCloudFrontScope(String region) {
+        cloudFrontPartition(region);
+    }
+
+    /**
      * The partition of {@code region}, provided it has CloudFront: GovCloud and the ISO partitions
-     * do not, so the CLOUDFRONT scope is invalid there for every operation, not only on create.
+     * do not, so the CLOUDFRONT scope is invalid there.
      */
     private AwsPartition cloudFrontPartition(String region) {
         AwsPartition partition = AwsPartitions.forRegionOrCommercial(region);
