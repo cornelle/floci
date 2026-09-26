@@ -48,6 +48,22 @@ class PartitionRegionGatesIntegrationTest {
                 .body("Reason", containsString("aws-us-gov"));
     }
 
+    /** The scope is unavailable for every operation in such a partition, not only for creates. */
+    @Test
+    void cloudFrontScopeListsAreRejectedWhereThePartitionHasNoCloudFront() {
+        for (String action : new String[] {"ListIPSets", "ListWebACLs"}) {
+            given()
+                .header("Authorization", PartitionMatrix.sigV4Auth("us-gov-west-1", "wafv2"))
+                .header("X-Amz-Target", "AWSWAF_20190729." + action)
+                .contentType(JSON_1_1)
+                .body("{\"Scope\":\"CLOUDFRONT\"}")
+            .when().post("/")
+            .then().statusCode(400)
+                .body("__type", containsString("WAFInvalidParameterException"))
+                .body("Reason", containsString("aws-us-gov"));
+        }
+    }
+
     @Test
     void cloudFrontScopeLivesInThePartitionsImplicitGlobalRegion() {
         String name = "cn-" + Long.toString(System.nanoTime(), 36);

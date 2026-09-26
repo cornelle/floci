@@ -505,6 +505,9 @@ public class WafV2Service {
             throw new AwsException("WAFInvalidParameterException",
                     "Scope must be CLOUDFRONT or REGIONAL.", 400);
         }
+        if ("CLOUDFRONT".equals(scope)) {
+            cloudFrontPartition(regionResolver.getRegion());
+        }
     }
 
     private void requireName(String name) {
@@ -626,18 +629,22 @@ public class WafV2Service {
         return regionResolver.buildArn("wafv2", arnRegion, prefix + "/" + type + "/" + name + "/" + id);
     }
 
-    /**
-     * A CLOUDFRONT-scoped resource lives in the partition's implicit global region (us-east-1,
-     * cn-northwest-1), and only where CloudFront exists: GovCloud and the ISO partitions have no
-     * CloudFront, so the scope is invalid there.
-     */
+    /** A CLOUDFRONT-scoped resource lives in the partition's implicit global region (us-east-1, cn-northwest-1). */
     private String cloudFrontScopeRegion(String region) {
+        return cloudFrontPartition(region).implicitGlobalRegion();
+    }
+
+    /**
+     * The partition of {@code region}, provided it has CloudFront: GovCloud and the ISO partitions
+     * do not, so the CLOUDFRONT scope is invalid there for every operation, not only on create.
+     */
+    private AwsPartition cloudFrontPartition(String region) {
         AwsPartition partition = AwsPartitions.forRegionOrCommercial(region);
         if (!partition.offers("cloudfront")) {
             throw invalidParameter("SCOPE_VALUE", "CLOUDFRONT",
                     "The CLOUDFRONT scope is not available in partition " + partition.id() + ".");
         }
-        return partition.implicitGlobalRegion();
+        return partition;
     }
 
     /**

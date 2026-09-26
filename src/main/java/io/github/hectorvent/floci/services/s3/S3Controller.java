@@ -416,8 +416,7 @@ public class S3Controller {
                     locationConstraint = locationNode.text().trim();
                     if (locationConstraint.isEmpty()) {
                         locationConstraint = null;
-                    } else if (US_EAST_1.equalsIgnoreCase(locationConstraint)
-                            || !isValidLocationConstraint(locationConstraint)) {
+                    } else if (!isValidLocationConstraint(locationConstraint)) {
                         throw new AwsException("InvalidLocationConstraint",
                                 "The specified location-constraint is not valid.", 400);
                     }
@@ -2063,10 +2062,11 @@ public class S3Controller {
 
     /**
      * S3's CreateBucket region rules, the same in every partition (moto's {@code aws_verified}
-     * matrix): the {@code us-east-1} endpoint takes any constraint but its own, which is
-     * {@code InvalidLocationConstraint}; every other regional endpoint requires a constraint
-     * naming exactly its region and answers {@code IllegalLocationConstraintException} otherwise,
-     * so in a China or GovCloud deployment the constraint is de facto required.
+     * matrix): every regional endpoint but {@code us-east-1} requires a constraint naming exactly
+     * its region and answers {@code IllegalLocationConstraintException} otherwise, including for a
+     * {@code us-east-1} constraint, so in a China or GovCloud deployment the constraint is de facto
+     * required; the {@code us-east-1} endpoint takes any constraint but its own, which is
+     * {@code InvalidLocationConstraint}.
      */
     static String bucketRegionForCreate(String locationConstraint, String endpointRegion) {
         boolean globalEndpoint = US_EAST_1.equals(endpointRegion);
@@ -2078,14 +2078,14 @@ public class S3Controller {
             }
             return US_EAST_1;
         }
-        if (US_EAST_1.equalsIgnoreCase(locationConstraint)) {
-            throw new AwsException("InvalidLocationConstraint",
-                    "The specified location-constraint is not valid.", 400);
-        }
         if (!globalEndpoint && !locationConstraint.equalsIgnoreCase(endpointRegion)) {
             throw new AwsException("IllegalLocationConstraintException",
                     "The " + locationConstraint + " location constraint is incompatible for the region "
                             + "specific endpoint this request was sent to.", 400);
+        }
+        if (US_EAST_1.equalsIgnoreCase(locationConstraint)) {
+            throw new AwsException("InvalidLocationConstraint",
+                    "The specified location-constraint is not valid.", 400);
         }
         return locationConstraint;
     }

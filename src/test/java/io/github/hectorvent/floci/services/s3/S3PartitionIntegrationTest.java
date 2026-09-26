@@ -72,6 +72,13 @@ class S3PartitionIntegrationTest {
         s3("cn-north-1").contentType("application/xml").body(constraint("cn-northwest-1"))
                 .put("/" + bucket).then().statusCode(400)
                 .body(containsString("<Code>IllegalLocationConstraintException</Code>"));
+        // us-east-1 is only InvalidLocationConstraint on its own endpoint; anywhere else it is
+        // just another mismatched region.
+        s3("us-west-2").contentType("application/xml").body(constraint("us-east-1"))
+                .put("/" + bucket).then().statusCode(400)
+                .body(containsString("<Code>IllegalLocationConstraintException</Code>"))
+                .body(containsString("<Message>The us-east-1 location constraint is incompatible for the "
+                        + "region specific endpoint this request was sent to.</Message>"));
     }
 
     @Test
