@@ -305,13 +305,13 @@ public class SqsService implements Resettable, ResourceProvider {
     SqsService(StorageBackend<String, Queue> queueStore,
                int defaultVisibilityTimeout, int maxMessageSize, String baseUrl) {
         this(queueStore, null, null, defaultVisibilityTimeout, maxMessageSize, baseUrl,
-                new RegionResolver("us-east-1", "000000000000"), false, null);
+                new RegionResolver("us-east-1", "000000000000"), false, null); // partition-literal: test-shaped constructor default
     }
 
     SqsService(StorageBackend<String, Queue> queueStore,
                int defaultVisibilityTimeout, int maxMessageSize, String baseUrl, Clock clock) {
         this(queueStore, null, null, defaultVisibilityTimeout, maxMessageSize, baseUrl,
-                new RegionResolver("us-east-1", "000000000000"), false, null, clock);
+                new RegionResolver("us-east-1", "000000000000"), false, null, clock); // partition-literal: test-shaped constructor default
     }
 
     SqsService(StorageBackend<String, Queue> queueStore, StorageBackend<String, List<Message>> messageStore,

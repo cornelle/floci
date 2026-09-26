@@ -827,8 +827,8 @@ public class LambdaController {
                 .put("RuntimeVersionArn", runtimeVersionArn(fn));
     }
 
-    private static String runtimeVersionArn(LambdaFunction fn) {
-        String region = "us-east-1";
+    private String runtimeVersionArn(LambdaFunction fn) {
+        String region = regionResolver.getDefaultRegion();
         String[] arnParts = fn.getFunctionArn() != null ? fn.getFunctionArn().split(":") : new String[0];
         if (arnParts.length > 3 && !arnParts[3].isBlank()) {
             region = arnParts[3];

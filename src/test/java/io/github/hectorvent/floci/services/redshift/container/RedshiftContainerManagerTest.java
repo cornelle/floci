@@ -72,6 +72,7 @@ class RedshiftContainerManagerTest {
         when(lifecycleManager.getDockerClient()).thenReturn(dockerClient);
         when(config.services().redshift().imageVersion()).thenReturn("postgres:16-alpine");
         when(config.services().redshift().dockerNetwork()).thenReturn(Optional.empty());
+        when(config.defaultRegion()).thenReturn("us-east-1");
 
         // Default mock for execCreateCmd/execStartCmd/inspectExecCmd to make waitForReady succeed instantly
         ExecCreateCmd defaultCreateCmd = mock(ExecCreateCmd.class, org.mockito.Mockito.RETURNS_SELF);

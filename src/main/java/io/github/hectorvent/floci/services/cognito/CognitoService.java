@@ -1271,9 +1271,9 @@ public class CognitoService implements ResourceProvider {
 
     // ──────────────────────────── User Pool Domains ────────────────────────────
 
-    private static final String CERTIFICATE_REGION = "us-east-1";
+    private static final String CERTIFICATE_REGION = "us-east-1"; // partition-literal: CloudFront certificates live in us-east-1 by AWS's rule
     private static final String CERTIFICATE_NOT_USABLE = "The specified SSL certificate doesn't exist, "
-            + "isn't in us-east-1 region, isn't valid, or doesn't include a valid certificate chain.";
+            + "isn't in us-east-1 region, isn't valid, or doesn't include a valid certificate chain."; // partition-literal: AWS's message text
 
     /**
      * Creates either an Amazon Cognito prefix domain ({@code customDomainConfig == null})

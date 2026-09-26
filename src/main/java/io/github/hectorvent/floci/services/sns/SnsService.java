@@ -574,7 +574,7 @@ public class SnsService implements Resettable, ResourceProvider {
         if (phoneNumber != null) {
             requireWithinMaxMessageSize(payloadSize, DEFAULT_MAX_MESSAGE_SIZE);
             String messageId = UUID.randomUUID().toString();
-            String effectiveRegion = region != null ? region : "us-east-1";
+            String effectiveRegion = region != null ? region : regionResolver.getDefaultRegion();
             SentSms sms = new SentSms(messageId, effectiveRegion, phoneNumber,
                     message, subject, Instant.now());
             smsStore.put("sms::" + effectiveRegion + "::" + messageId, sms);

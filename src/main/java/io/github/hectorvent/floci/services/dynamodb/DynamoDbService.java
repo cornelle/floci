@@ -167,7 +167,7 @@ public class DynamoDbService {
 
     /** Package-private constructor for testing. */
     DynamoDbService(StorageBackend<String, TableDefinition> tableStore) {
-        this(tableStore, null, null, null, new RegionResolver("us-east-1", "000000000000"), null, null, null, null);
+        this(tableStore, null, null, null, new RegionResolver("us-east-1", "000000000000"), null, null, null, null); // partition-literal: test-shaped constructor default
     }
 
     DynamoDbService(StorageBackend<String, TableDefinition> tableStore, RegionResolver regionResolver) {

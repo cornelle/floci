@@ -73,6 +73,13 @@ did before.
   S3 publishes a dual-stack endpoint.
 - **Hostname recognition**: every published region id and DNS suffix, in every partition, is
   recognised in an S3 virtual-host, execute-api, ECR image or CloudFront origin hostname.
+- **S3 CreateBucket**: as on AWS, the `us-east-1` endpoint takes any `LocationConstraint` but
+  its own, and every other regional endpoint requires a constraint naming exactly its region
+  (`IllegalLocationConstraintException` otherwise). A China or GovCloud client must send the
+  constraint, which the AWS SDKs do; `GetBucketLocation` still answers an empty constraint only
+  for `us-east-1`, in every partition.
+- **WAF `CLOUDFRONT` scope**: available only where CloudFront exists (`aws`, `aws-cn`), and its
+  resources live in the partition's implicit global region (`cn-northwest-1` in China).
 
 ## What does not change
 

@@ -355,7 +355,7 @@ public class S3Service implements Resettable, ResourceProvider {
     }
 
     private static boolean isDefaultS3Region(String region) {
-        return region == null || region.isBlank() || "us-east-1".equalsIgnoreCase(region);
+        return region == null || region.isBlank() || "us-east-1".equalsIgnoreCase(region); // partition-literal: S3's idempotent CreateBucket rule is literally us-east-1 in every partition
     }
 
     public void deleteBucket(String bucketName) {

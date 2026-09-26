@@ -66,7 +66,7 @@ public final class AwsEndpoints {
      */
     public static String ec2PublicDns(String ip, String region) {
         String dashed = "ec2-" + ip.replace('.', '-');
-        if ("us-east-1".equals(region)) {
+        if ("us-east-1".equals(region)) { // partition-literal: EC2 public DNS keeps compute-1 in us-east-1 alone
             return dashed + ".compute-1." + AwsRegions.DEFAULT_DNS_SUFFIX;
         }
         return dashed + "." + region + ".compute." + AwsRegions.dnsSuffixFor(region);

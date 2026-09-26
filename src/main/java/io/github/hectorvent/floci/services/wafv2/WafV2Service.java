@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.hectorvent.floci.core.common.AwsException;
+import io.github.hectorvent.floci.core.common.AwsPartition;
+import io.github.hectorvent.floci.core.common.AwsPartitions;
 import io.github.hectorvent.floci.core.common.RegionResolver;
 import io.github.hectorvent.floci.core.storage.StorageBackend;
 import io.github.hectorvent.floci.core.storage.StorageFactory;
@@ -620,8 +622,22 @@ public class WafV2Service {
 
     private String buildArn(String scope, String type, String name, String id, String region) {
         String prefix = "CLOUDFRONT".equals(scope) ? "global" : "regional";
-        String arnRegion = "CLOUDFRONT".equals(scope) ? "us-east-1" : region;
+        String arnRegion = "CLOUDFRONT".equals(scope) ? cloudFrontScopeRegion(region) : region;
         return regionResolver.buildArn("wafv2", arnRegion, prefix + "/" + type + "/" + name + "/" + id);
+    }
+
+    /**
+     * A CLOUDFRONT-scoped resource lives in the partition's implicit global region (us-east-1,
+     * cn-northwest-1), and only where CloudFront exists: GovCloud and the ISO partitions have no
+     * CloudFront, so the scope is invalid there.
+     */
+    private String cloudFrontScopeRegion(String region) {
+        AwsPartition partition = AwsPartitions.forRegionOrCommercial(region);
+        if (!partition.offers("cloudfront")) {
+            throw invalidParameter("SCOPE_VALUE", "CLOUDFRONT",
+                    "The CLOUDFRONT scope is not available in partition " + partition.id() + ".");
+        }
+        return partition.implicitGlobalRegion();
     }
 
     /**

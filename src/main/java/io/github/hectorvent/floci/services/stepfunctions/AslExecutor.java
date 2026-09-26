@@ -5473,11 +5473,11 @@ public class AslExecutor {
     }
 
     private String extractRegionFromArn(String arn) {
-        return AwsArnUtils.regionOrDefault(arn, "us-east-1");
+        return AwsArnUtils.regionOrDefault(arn, config.defaultRegion());
     }
 
-    private static String normalizeS3Region(String region) {
-        return region == null || region.isBlank() ? "us-east-1" : region;
+    private String normalizeS3Region(String region) {
+        return region == null || region.isBlank() ? config.defaultRegion() : region;
     }
 
     record StateResult(JsonNode output, String nextState) {}

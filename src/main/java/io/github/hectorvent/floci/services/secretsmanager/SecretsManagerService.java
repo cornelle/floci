@@ -114,7 +114,7 @@ public class SecretsManagerService implements ResourceProvider {
     }
 
     SecretsManagerService(StorageBackend<String, Secret> store, int defaultRecoveryWindowDays) {
-        this(store, defaultRecoveryWindowDays, new RegionResolver("us-east-1", "000000000000"), null,
+        this(store, defaultRecoveryWindowDays, new RegionResolver("us-east-1", "000000000000"), null, // partition-literal: test-shaped constructor default
                 new ObjectMapper(), null);
     }
 

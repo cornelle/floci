@@ -78,6 +78,9 @@ import org.jboss.resteasy.reactive.server.ServerExceptionMapper;
 @Path("/")
 public class S3Controller {
 
+    /** The one region S3 treats specially in every partition: no LocationConstraint, idempotent CreateBucket. */
+    private static final String US_EAST_1 = "us-east-1"; // partition-literal: S3's own global-endpoint rule
+
     private static final Logger LOG = Logger.getLogger(S3Controller.class);
     private static final DateTimeFormatter ISO_FORMAT = DateTimeFormatter
             .ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
@@ -413,7 +416,7 @@ public class S3Controller {
                     locationConstraint = locationNode.text().trim();
                     if (locationConstraint.isEmpty()) {
                         locationConstraint = null;
-                    } else if ("us-east-1".equalsIgnoreCase(locationConstraint)
+                    } else if (US_EAST_1.equalsIgnoreCase(locationConstraint)
                             || !isValidLocationConstraint(locationConstraint)) {
                         throw new AwsException("InvalidLocationConstraint",
                                 "The specified location-constraint is not valid.", 400);
@@ -422,7 +425,7 @@ public class S3Controller {
                 creationTags = XmlParser.extractPairs(
                         new String(body, StandardCharsets.UTF_8), "Tag", "Key", "Value");
             }
-            String region = locationConstraint != null ? locationConstraint : regionResolver.resolveRegion(httpHeaders);
+            String region = bucketRegionForCreate(locationConstraint, regionResolver.resolveRegion(httpHeaders));
             s3Service.createBucket(bucket, region);
             // CreateBucketConfiguration may carry a <Tags> array; AWS applies those tags to the
             // new bucket, so a follow-up GetBucketTagging / ListTagsForResource must return them.
@@ -2058,12 +2061,42 @@ public class S3Controller {
         }
     }
 
+    /**
+     * S3's CreateBucket region rules, the same in every partition (moto's {@code aws_verified}
+     * matrix): the {@code us-east-1} endpoint takes any constraint but its own, which is
+     * {@code InvalidLocationConstraint}; every other regional endpoint requires a constraint
+     * naming exactly its region and answers {@code IllegalLocationConstraintException} otherwise,
+     * so in a China or GovCloud deployment the constraint is de facto required.
+     */
+    static String bucketRegionForCreate(String locationConstraint, String endpointRegion) {
+        boolean globalEndpoint = US_EAST_1.equals(endpointRegion);
+        if (locationConstraint == null) {
+            if (!globalEndpoint) {
+                throw new AwsException("IllegalLocationConstraintException",
+                        "The unspecified location constraint is incompatible for the region specific "
+                                + "endpoint this request was sent to.", 400);
+            }
+            return US_EAST_1;
+        }
+        if (US_EAST_1.equalsIgnoreCase(locationConstraint)) {
+            throw new AwsException("InvalidLocationConstraint",
+                    "The specified location-constraint is not valid.", 400);
+        }
+        if (!globalEndpoint && !locationConstraint.equalsIgnoreCase(endpointRegion)) {
+            throw new AwsException("IllegalLocationConstraintException",
+                    "The " + locationConstraint + " location constraint is incompatible for the region "
+                            + "specific endpoint this request was sent to.", 400);
+        }
+        return locationConstraint;
+    }
+
     // --- Bucket Location ---
 
     private Response handleGetBucketLocation(String bucket) {
         String region = s3Service.getBucketRegion(bucket);
         String xml;
-        if (region == null || "us-east-1".equals(region)) {
+        // Null only for us-east-1, in every partition (GetBucketLocationOutput in the S3 model).
+        if (region == null || US_EAST_1.equals(region)) {
             xml = "<LocationConstraint xmlns=\"" + AwsNamespaces.S3 + "\"/>";
         } else {
             xml = new XmlBuilder()

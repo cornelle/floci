@@ -2720,7 +2720,7 @@ public class LambdaService implements ResourceProvider {
 
     /** Per-region bucket that mirrors AWS's Lambda code bucket naming. */
     public static String tasksBucketName(String region) {
-        String r = (region == null || region.isBlank()) ? "us-east-1" : region;
+        String r = (region == null || region.isBlank()) ? "us-east-1" : region; // partition-literal: static helper; every caller passes the function's own region
         return "awslambda-" + r + "-tasks";
     }
 

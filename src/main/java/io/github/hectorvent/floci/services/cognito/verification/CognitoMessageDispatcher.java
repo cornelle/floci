@@ -26,7 +26,7 @@ public final class CognitoMessageDispatcher {
     private static final String DEFAULT_EMAIL_BODY = "Your verification code is {####}.";
     private static final String DEFAULT_SMS_BODY = "Your verification code is {####}.";
     private static final String DEFAULT_FROM = "no-reply@verificationemail.com";
-    private static final String DEFAULT_REGION = "us-east-1";
+    private static final String DEFAULT_REGION = "us-east-1"; // partition-literal: fallback only when the record carries no region; no resolver in scope (follow-up)
     private static final String CODE_PLACEHOLDER = "{####}";
 
     private final SesService ses;

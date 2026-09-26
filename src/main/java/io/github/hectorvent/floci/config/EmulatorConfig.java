@@ -55,10 +55,10 @@ public interface EmulatorConfig {
                 .orElseGet(() -> URI.create(effectiveBaseUrl()).getAuthority());
     }
 
-    @WithDefault("us-east-1")
+    @WithDefault("us-east-1") // partition-literal: the configurable default region
     String defaultRegion();
 
-    @WithDefault("us-east-1a")
+    @WithDefault("us-east-1a") // partition-literal: the configurable default availability zone
     String defaultAvailabilityZone();
 
     @WithDefault("000000000000")

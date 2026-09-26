@@ -97,7 +97,7 @@ public class SsmService implements ResourceProvider {
                int maxParameterHistory) {
         this(parameterStore, historyStore, documentPermissionStore, new InMemoryStorage<>(),
                 new InMemoryStorage<>(), new InMemoryStorage<>(), maxParameterHistory,
-                new RegionResolver("us-east-1", "000000000000"));
+                new RegionResolver("us-east-1", "000000000000")); // partition-literal: test-shaped constructor default
     }
 
     /**
@@ -108,7 +108,7 @@ public class SsmService implements ResourceProvider {
                int maxParameterHistory) {
         this(parameterStore, historyStore, new InMemoryStorage<>(), new InMemoryStorage<>(),
                 new InMemoryStorage<>(), new InMemoryStorage<>(), maxParameterHistory,
-                new RegionResolver("us-east-1", "000000000000"));
+                new RegionResolver("us-east-1", "000000000000")); // partition-literal: test-shaped constructor default
     }
 
     SsmService(StorageBackend<String, Parameter> parameterStore,

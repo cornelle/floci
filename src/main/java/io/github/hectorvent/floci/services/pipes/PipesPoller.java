@@ -906,7 +906,7 @@ public class PipesPoller implements Resettable {
     }
 
     private static String extractRegionFromArn(String arn) {
-        return AwsArnUtils.regionOrDefault(arn, "us-east-1");
+        return AwsArnUtils.regionOrDefault(arn, "us-east-1"); // partition-literal: fallback only when the record carries no region; no resolver in scope (follow-up)
     }
 
     private static String extractResourceName(String arn) {

@@ -135,7 +135,7 @@ public class RedshiftContainerManager {
                     info.containerId(),
                     "/floci/redshift",
                     clusterIdentifier,
-                    "us-east-1",
+                    config.defaultRegion(),
                     "redshift:" + clusterIdentifier);
             handle.setLogStream(stream);
         } catch (Exception e) {

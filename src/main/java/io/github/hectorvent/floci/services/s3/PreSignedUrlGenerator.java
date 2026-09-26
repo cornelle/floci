@@ -42,11 +42,11 @@ public class PreSignedUrlGenerator {
 
     /** Package-private constructor for testing. */
     PreSignedUrlGenerator(String secret, int defaultExpiry) {
-        this(secret, defaultExpiry, false, "us-east-1", "000000000000");
+        this(secret, defaultExpiry, false, "us-east-1", "000000000000"); // partition-literal: test-shaped constructor default
     }
 
     PreSignedUrlGenerator(String secret, int defaultExpiry, boolean validateSignatures) {
-        this(secret, defaultExpiry, validateSignatures, "us-east-1", "000000000000");
+        this(secret, defaultExpiry, validateSignatures, "us-east-1", "000000000000"); // partition-literal: test-shaped constructor default
     }
 
     PreSignedUrlGenerator(String secret, int defaultExpiry, boolean validateSignatures, String defaultRegion) {
@@ -81,9 +81,18 @@ public class PreSignedUrlGenerator {
 
     public String generatePresignedUrl(String baseUrl, String bucket, String key,
                                          String method, int expiresSeconds) {
+        return generatePresignedUrl(baseUrl, bucket, key, method, expiresSeconds, defaultRegion);
+    }
+
+    /**
+     * Signs with {@code region} as the credential-scope region: the request's own, once one
+     * process serves several partitions.
+     */
+    public String generatePresignedUrl(String baseUrl, String bucket, String key,
+                                         String method, int expiresSeconds, String region) {
         int expiry = expiresSeconds > 0 ? expiresSeconds : defaultExpiry;
         String amzDate = AMZ_DATE_FORMAT.format(Instant.now());
-        String credential = resolveAccessKeyId() + "/" + amzDate.substring(0, 8) + "/" + defaultRegion + "/s3/aws4_request";
+        String credential = resolveAccessKeyId() + "/" + amzDate.substring(0, 8) + "/" + region + "/s3/aws4_request";
 
         String signature = computeSignature(method, bucket, key, amzDate, expiry);
 

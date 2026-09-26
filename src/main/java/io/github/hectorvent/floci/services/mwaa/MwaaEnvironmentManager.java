@@ -398,7 +398,7 @@ public class MwaaEnvironmentManager {
     }
 
     static String environmentRegion(Environment environment) {
-        return AwsArnUtils.regionOrDefault(environment.getArn(), "us-east-1");
+        return AwsArnUtils.regionOrDefault(environment.getArn(), "us-east-1"); // partition-literal: fallback only when the record carries no region; no resolver in scope (follow-up)
     }
 
     /**

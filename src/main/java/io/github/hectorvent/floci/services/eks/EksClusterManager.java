@@ -1606,7 +1606,7 @@ public class EksClusterManager implements ClusterNodeInstanceProvider {
         String accountId = cluster.getAccountId() != null && !cluster.getAccountId().isBlank()
                 ? cluster.getAccountId()
                 : (cluster.getArn() != null && cluster.getArn().split(":", 6).length > 4 ? cluster.getArn().split(":", 6)[4] : "000000000000");
-        String region = "us-east-1";
+        String region = "us-east-1"; // partition-literal: fallback only when the record carries no region; no resolver in scope (follow-up)
         if (cluster.getArn() != null) {
             String[] parts = cluster.getArn().split(":", 6);
             if (parts.length > 3 && !parts[3].isBlank()) {
@@ -1793,7 +1793,7 @@ public class EksClusterManager implements ClusterNodeInstanceProvider {
         if (config != null && config.defaultRegion() != null && !config.defaultRegion().isBlank()) {
             return config.defaultRegion();
         }
-        return "us-east-1";
+        return "us-east-1"; // partition-literal: fallback only when the record carries no region; no resolver in scope (follow-up)
     }
 
     String deriveClusterNodeAvailabilityZone(Cluster cluster, String region) {

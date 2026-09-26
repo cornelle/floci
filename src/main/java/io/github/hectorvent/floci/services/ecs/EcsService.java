@@ -4110,7 +4110,7 @@ public class EcsService implements ContainerTeardown, ResourceProvider, Resettab
                         task.getTaskArn());
             }
         }
-        return regionResolver != null ? regionResolver.getDefaultRegion() : "us-east-1";
+        return regionResolver != null ? regionResolver.getDefaultRegion() : "us-east-1"; // partition-literal: reached only when constructed without a resolver (test constructors)
     }
 
     private void reconcileStoppedTask(String taskArn) {

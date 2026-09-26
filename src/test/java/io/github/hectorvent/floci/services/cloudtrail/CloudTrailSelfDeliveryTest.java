@@ -7,6 +7,7 @@ import io.github.hectorvent.floci.testing.RestAssuredJsonUtils;
 import io.github.hectorvent.floci.testutil.S3RequestSigner;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.response.Response;
+import io.restassured.specification.RequestSpecification;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -88,7 +89,7 @@ class CloudTrailSelfDeliveryTest {
         String trailName = "loop-trail-" + suffix;
         S3RequestSigner s3 = S3RequestSigner.signedAs("test", "test").inRegion(region);
 
-        createBucket(bucket, s3);
+        createBucket(bucket, region, s3);
         // Runs last: the emulator is shared, and a leftover bucket shows up in every later
         // cross-region listing (ResourceExplorer scans all resources).
         cleanup.register(() -> deleteBucketAndObjects(bucket, s3));
@@ -163,8 +164,14 @@ class CloudTrailSelfDeliveryTest {
         .when().post("/");
     }
 
-    private static void createBucket(String name, S3RequestSigner signer) {
-        given().filter(signer).when().put("/" + name).then().statusCode(200);
+    /** A regional endpoint other than us-east-1 requires a LocationConstraint naming its region, as on AWS. */
+    private static void createBucket(String name, String region, S3RequestSigner signer) {
+        RequestSpecification request = given().filter(signer);
+        if (!"us-east-1".equals(region)) {
+            request = request.contentType("application/xml").body("<CreateBucketConfiguration><LocationConstraint>"
+                    + region + "</LocationConstraint></CreateBucketConfiguration>");
+        }
+        request.when().put("/" + name).then().statusCode(200);
     }
 
     private static void putObject(String bucket, String key, String body, S3RequestSigner signer) {
