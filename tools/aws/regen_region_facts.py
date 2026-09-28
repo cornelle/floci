@@ -230,8 +230,17 @@ def strip_source(text: str) -> str:
     return json.dumps(document, sort_keys=True)
 
 
-def self_check(path: Path) -> list[str]:
-    """Shape problems of the vendored file, for a check with no sources at hand."""
+HOSTED_ZONE_ID_RE = re.compile(r"Z[0-9A-Z]{9,31}")
+SAML_URL_RE = re.compile(r"https://[a-z0-9.-]+/saml")
+VPCE_PREFIX_RE = re.compile(r"[a-z0-9-]+(\.[a-z0-9-]+)*\.vpce")
+REVERSED_DNS_RE = re.compile(r"[a-z0-9-]+(\.[a-z0-9-]+)+")
+
+
+def self_check(path: Path, partitions_path: Path = PARTITIONS) -> list[str]:
+    """Problems with the vendored file that need no sources: every partition partitions.json
+    publishes has an entry, its VPC endpoint prefix is exactly the reversed DNS suffix, every region
+    is a published one, and every other value has the shape of what it claims to be. It cannot tell
+    a stale value from a current one; only a regeneration against local/aws can."""
     problems: list[str] = []
     if not path.exists():
         return [f"{path} is missing"]
@@ -242,10 +251,44 @@ def self_check(path: Path) -> list[str]:
     for key in ("partitions", "regions"):
         if not isinstance(document.get(key), dict) or not document[key]:
             problems.append(f"{path}: '{key}' is missing or empty")
-    for region, entry in document.get("regions", {}).items():
+    if problems:
+        return problems
+
+    partitions_doc = json.loads(partitions_path.read_text(encoding="utf-8"))["partitions"]
+    for partition in partitions_doc:
+        entry = document["partitions"].get(partition["id"])
+        if entry is None:
+            problems.append(f"{path}: partition {partition['id']} has no entry")
+            continue
+        expected = ".".join(reversed(partition["dnsSuffix"].split("."))) + ".vpce"
+        if entry.get("vpcEndpointServiceNamePrefix") != expected:
+            problems.append(f"{path}: {partition['id']}.vpcEndpointServiceNamePrefix should be {expected!r}")
+    known = {region["id"] for partition in partitions_doc for region in partition["regions"]}
+    for region in document["regions"]:
+        if region not in known:
+            problems.append(f"{path}: region {region} is not published in partitions.json")
+
+    for partition, entry in document["partitions"].items():
         for key, value in entry.items():
-            if key.endswith("HostedZoneId") and not re.fullmatch(r"Z[0-9A-Z]{12,20}", value):
-                problems.append(f"{path}: {region}.{key} is not a hosted zone id: {value!r}")
+            pattern = {"cloudfrontHostedZoneId": HOSTED_ZONE_ID_RE, "samlSignOnUrl": SAML_URL_RE,
+                       "vpcEndpointServiceNamePrefix": VPCE_PREFIX_RE}.get(key)
+            if pattern is None:
+                problems.append(f"{path}: {partition}.{key} is not a known field")
+            elif not isinstance(value, str) or not pattern.fullmatch(value):
+                problems.append(f"{path}: {partition}.{key} has an unexpected shape: {value!r}")
+    for region, entry in document["regions"].items():
+        for key, value in entry.items():
+            if key.endswith("HostedZoneId"):
+                if not isinstance(value, str) or not HOSTED_ZONE_ID_RE.fullmatch(value):
+                    problems.append(f"{path}: {region}.{key} is not a hosted zone id: {value!r}")
+            elif key == "vpcEndpointExceptionPrefix":
+                if not isinstance(value, str) or not REVERSED_DNS_RE.fullmatch(value):
+                    problems.append(f"{path}: {region}.{key} is not a reversed DNS prefix: {value!r}")
+            elif key in ("vpcEndpointPrefixServices", "vpcEndpointCnSuffixServices"):
+                if not isinstance(value, list) or not all(isinstance(v, str) and v for v in value):
+                    problems.append(f"{path}: {region}.{key} is not a list of service names")
+            else:
+                problems.append(f"{path}: {region}.{key} is not a known field")
     return problems
 
 
@@ -262,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
     sources_present = (args.terraform / TF_ELB).exists() and (args.cdk / CDK_FACT_TABLES).exists()
     if not sources_present:
         if args.check:
-            problems = self_check(args.output)
+            problems = self_check(args.output, args.partitions)
             for problem in problems:
                 print(f"error: {problem}")
             if problems:

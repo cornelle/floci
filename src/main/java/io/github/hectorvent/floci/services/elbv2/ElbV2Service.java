@@ -162,6 +162,7 @@ public class ElbV2Service implements ResourceProvider {
      */
     public void restorePersistedRuntime()
     {
+        refreshCanonicalHostedZones();
         if (healthChecker != null) {
             for (Map<String, TargetGroup> regionTargetGroups : targetGroups.values()) {
                 for (TargetGroup targetGroup : regionTargetGroups.values()) {
@@ -1088,6 +1089,25 @@ public class ElbV2Service implements ResourceProvider {
 
     private static String randomHex16() {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+    }
+
+    /**
+     * A load balancer stored before the hosted zones were looked up per region and type still
+     * carries the one fixed zone every balancer used to report, so restored balancers take the
+     * zone of their region and type again, written back so the stored copy agrees.
+     */
+    private void refreshCanonicalHostedZones() {
+        for (String region : List.copyOf(loadBalancers.keySet())) {
+            Map<String, LoadBalancer> regionLoadBalancers = loadBalancers.get(region);
+            if (regionLoadBalancers == null) {
+                continue;
+            }
+            for (LoadBalancer lb : regionLoadBalancers.values()) {
+                String lbType = lb.getType() != null ? lb.getType() : "application";
+                lb.setCanonicalHostedZoneId(canonicalHostedZoneId(lbType, region));
+            }
+            loadBalancers.put(region, regionLoadBalancers);
+        }
     }
 
     /**

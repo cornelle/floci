@@ -3,6 +3,7 @@ package io.github.hectorvent.floci.services.elbv2;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.github.hectorvent.floci.config.EmulatorConfig;
 import io.github.hectorvent.floci.core.common.AwsException;
+import io.github.hectorvent.floci.core.common.AwsRegionFacts;
 import io.github.hectorvent.floci.core.common.RegionResolver;
 import io.github.hectorvent.floci.core.storage.InMemoryStorage;
 import io.github.hectorvent.floci.core.storage.StorageBackend;
@@ -389,5 +390,31 @@ class ElbV2ServiceTest {
                                                      TypeReference<Map<String, V>> typeReference) {
             return (AccountAwareStorageBackend<V>) stores.computeIfAbsent(fileName, ignored -> AccountAwareStorageBackend.inMemory("000000000000"));
         }
+    }
+
+    /**
+     * A balancer stored before the zone was looked up per region and type carries the one fixed
+     * zone every balancer used to report; a restart gives it the zone of its region and type back.
+     */
+    @Test
+    void aRestoredNetworkLoadBalancerTakesTheHostedZoneOfItsRegionAndType() {
+        SharedStorageFactory storageFactory = new SharedStorageFactory();
+        ElbV2Service first = serviceWithStorage(storageFactory, mock(ElbV2DataPlane.class),
+                mock(ElbV2HealthChecker.class));
+        first.createLoadBalancer(REGION, "stored-nlb", "internal", "network", "ipv4",
+                ALB_SUBNETS, List.of(), Map.of());
+        first.describeLoadBalancers(REGION, null, List.of("stored-nlb"), null, null).getFirst()
+                .setCanonicalHostedZoneId("Z35SXDOTRQ7X7K");
+
+        ElbV2Service reloaded = serviceWithStorage(storageFactory, mock(ElbV2DataPlane.class),
+                mock(ElbV2HealthChecker.class));
+        assertEquals("Z35SXDOTRQ7X7K", reloaded.describeLoadBalancers(REGION, null, List.of("stored-nlb"), null, null)
+                .getFirst().getCanonicalHostedZoneId());
+
+        reloaded.restorePersistedRuntime();
+
+        assertEquals(AwsRegionFacts.nlbHostedZoneId(REGION).orElseThrow(),
+                reloaded.describeLoadBalancers(REGION, null, List.of("stored-nlb"), null, null)
+                        .getFirst().getCanonicalHostedZoneId());
     }
 }

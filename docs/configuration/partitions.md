@@ -82,8 +82,10 @@ did before.
   per-region table (`aws/region-facts.json`, generated from the Terraform provider and the CDK,
   which transcribe the AWS General Reference); Network load balancers have their own zone,
   distinct from the Application/Classic one. The CloudFront hosted zone is published for `aws`
-  and `aws-cn`; the SAML sign-on URL for five partitions. Where a table has no row (the ISO and
-  EUSC regions) the field is omitted rather than guessed.
+  and `aws-cn`; the SAML sign-on URL for five partitions. The ISO and EUSC regions have no load
+  balancer hosted zones, and only the two ISO-F regions have an S3 website zone; where a table has
+  no row the field is omitted rather than guessed. An `EDGE` API Gateway custom domain, which is
+  fronted by CloudFront, is refused where the partition has no CloudFront (`BadRequestException`).
 - **VPC endpoint service names**: `com.amazonaws.<region>.<service>` everywhere, except the
   (region, service) pairs the CDK lists for China, ISO and EUSC, which reverse the DNS suffix
   (`cn.com.amazonaws.cn-north-1.s3`). GovCloud keeps `com.amazonaws`.

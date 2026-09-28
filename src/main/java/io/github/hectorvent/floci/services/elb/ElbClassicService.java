@@ -99,6 +99,18 @@ public class ElbClassicService {
      * nothing reachable from {@link #initializeStorage()} may touch an injected collaborator.
      */
     public void restorePersistedRuntime() {
+        // A balancer stored before the zone was looked up per region still carries the one fixed
+        // zone every balancer used to report; take the region's zone again and store it back.
+        for (String region : List.copyOf(loadBalancers.keySet())) {
+            Map<String, ClassicLoadBalancer> regionLbs = loadBalancers.get(region);
+            if (regionLbs == null) {
+                continue;
+            }
+            for (ClassicLoadBalancer lb : regionLbs.values()) {
+                lb.setCanonicalHostedZoneNameId(AwsRegionFacts.classicElbHostedZoneId(region).orElse(null));
+            }
+            loadBalancers.put(region, regionLbs);
+        }
         for (Map<String, ClassicLoadBalancer> regionLbs : loadBalancers.values()) {
             for (ClassicLoadBalancer lb : regionLbs.values()) {
                 healthChecker.startMonitoring(lb);

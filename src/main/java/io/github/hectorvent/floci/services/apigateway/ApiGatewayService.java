@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.hectorvent.floci.config.EmulatorConfig;
 import io.github.hectorvent.floci.config.TlsCertificateManager;
 import io.github.hectorvent.floci.core.common.AwsException;
+import io.github.hectorvent.floci.core.common.AwsPartition;
 import io.github.hectorvent.floci.core.common.AwsPartitions;
 import io.github.hectorvent.floci.core.common.AwsRegionFacts;
 import io.github.hectorvent.floci.core.common.ReservedTags;
@@ -1888,6 +1889,7 @@ public class ApiGatewayService {
             // neither regional nor edge-optimized, which nothing here could route or describe.
             throw new AwsException("BadRequestException", "Invalid value for endpoint type: " + endpointType, 400);
         }
+        requireEndpointTypeAvailable(endpointType, region);
 
         CustomDomain domain = new CustomDomain();
         domain.setDomainName(domainName);
@@ -1929,6 +1931,19 @@ public class ApiGatewayService {
      * regional domain has none, so a move to {@code REGIONAL} drops the distribution again while a
      * move to {@code EDGE} puts one in front of the domain, as the migration does on AWS.
      */
+    /**
+     * An edge-optimized domain is fronted by CloudFront, so it only exists in a partition that has
+     * CloudFront; elsewhere it would have no distribution hosted zone to alias to. No source shows
+     * AWS's message for this, so the wording is Floci's own.
+     */
+    private static void requireEndpointTypeAvailable(String endpointType, String region) {
+        AwsPartition partition = AwsPartitions.forRegionOrCommercial(region);
+        if ("EDGE".equals(endpointType) && !partition.offers("cloudfront")) {
+            throw new AwsException("BadRequestException",
+                    "Endpoint type EDGE is not available in partition " + partition.id() + ".", 400);
+        }
+    }
+
     private void applyEndpointType(CustomDomain domain, String endpointType, String region) {
         domain.setEndpointConfigurationType(endpointType);
         if (!"EDGE".equals(endpointType)) {
@@ -2053,6 +2068,7 @@ public class ApiGatewayService {
                 throw new AwsException("BadRequestException", "Unsupported path: " + path, 400);
             }
         }
+        requireEndpointTypeAvailable(newEndpointConfigurationType, region);
         domain.setCertificateName(newCertificateName);
         domain.setCertificateArn(newCertificateArn);
         domain.setRegionalCertificateName(newRegionalCertificateName);

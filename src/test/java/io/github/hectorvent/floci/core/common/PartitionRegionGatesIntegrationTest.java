@@ -66,6 +66,67 @@ class PartitionRegionGatesIntegrationTest {
         }
     }
 
+    private static Response createPrefixList(String region, String name) {
+        return given()
+            .header("Authorization", PartitionMatrix.sigV4Auth(region, "ec2"))
+            .formParam("Action", "CreateManagedPrefixList")
+            .formParam("Version", "2016-11-15")
+            .formParam("PrefixListName", name)
+            .formParam("AddressFamily", "IPv4")
+            .formParam("MaxEntries", "5")
+        .when().post("/");
+    }
+
+    /**
+     * China's AWS-managed lists are named {@code cn.com.amazonaws.<region>.<service>}, so a
+     * customer list may not take that prefix there; elsewhere the prefix is nothing special.
+     */
+    @Test
+    void theChinaManagedPrefixListNameIsReservedOnlyInChina() {
+        createPrefixList("cn-north-1", "cn.com.amazonaws.cn-north-1.s3").then().statusCode(400)
+            .body(containsString("InvalidParameterValue"))
+            .body(containsString("cn.com.amazonaws."));
+
+        String name = "cn.com.amazonaws.custom-" + Long.toString(System.nanoTime(), 36);
+        Response created = createPrefixList("us-east-1", name);
+        created.then().statusCode(200);
+        String id = created.xmlPath().getString("CreateManagedPrefixListResponse.prefixList.prefixListId");
+        cleanup.register(() -> given()
+            .header("Authorization", PartitionMatrix.sigV4Auth("us-east-1", "ec2"))
+            .formParam("Action", "DeleteManagedPrefixList")
+            .formParam("Version", "2016-11-15")
+            .formParam("PrefixListId", id)
+        .when().post("/"));
+    }
+
+    /** An edge-optimized domain is fronted by CloudFront; a regional one needs nothing from it. */
+    @Test
+    void edgeCustomDomainsAreRejectedWhereThePartitionHasNoCloudFront() {
+        String suffix = Long.toString(System.nanoTime(), 36);
+        given()
+            .header("Authorization", PartitionMatrix.sigV4Auth("us-gov-west-1", "apigateway"))
+            .contentType("application/json")
+            .body("{\"domainName\":\"edge-" + suffix + ".example.com\","
+                    + "\"certificateArn\":\"arn:aws-us-gov:acm:us-gov-west-1:000000000000:certificate/edge\","
+                    + "\"endpointConfiguration\":{\"types\":[\"EDGE\"]}}")
+        .when().post("/domainnames")
+        .then().statusCode(400)
+            .body(containsString("not available in partition aws-us-gov"));
+
+        String regional = "regional-" + suffix + ".example.com";
+        given()
+            .header("Authorization", PartitionMatrix.sigV4Auth("us-gov-west-1", "apigateway"))
+            .contentType("application/json")
+            .body("{\"domainName\":\"" + regional + "\","
+                    + "\"regionalCertificateArn\":\"arn:aws-us-gov:acm:us-gov-west-1:000000000000:certificate/regional\","
+                    + "\"endpointConfiguration\":{\"types\":[\"REGIONAL\"]}}")
+        .when().post("/domainnames")
+        .then().statusCode(201);
+        cleanup.register(() -> given()
+            .header("Authorization", PartitionMatrix.sigV4Auth("us-gov-west-1", "apigateway"))
+        .when().delete("/domainnames/" + regional));
+    }
+
     @Test
     void cloudFrontScopeLivesInThePartitionsImplicitGlobalRegion() {
         String name = "cn-" + Long.toString(System.nanoTime(), 36);

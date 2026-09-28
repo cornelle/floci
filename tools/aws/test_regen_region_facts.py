@@ -197,11 +197,11 @@ def test_cli_write_check_and_self_check(tmp_path, capsys):
     assert "is up to date" in capsys.readouterr().out
     # without the checkouts, --check verifies the shape only
     assert r.main(["--check", "--terraform", str(tmp_path / "nowhere"), "--cdk", str(tmp_path / "nowhere"),
-                   "--output", str(output)]) == 0
+                   "--partitions", str(partitions), "--output", str(output)]) == 0
     assert "shape verified only" in capsys.readouterr().out
     output.write_text('{"partitions": {}, "regions": {"us-east-1": {"albHostedZoneId": "nope"}}}')
     assert r.main(["--check", "--terraform", str(tmp_path / "nowhere"), "--cdk", str(tmp_path / "nowhere"),
-                   "--output", str(output)]) == 1
+                   "--partitions", str(partitions), "--output", str(output)]) == 1
 
 
 def test_repo_file_matches_the_local_checkouts_when_present():
@@ -209,3 +209,28 @@ def test_repo_file_matches_the_local_checkouts_when_present():
         pytest.skip("local/aws checkouts not present")
     document = r.build(r.LOCAL_TERRAFORM, r.LOCAL_CDK, json.loads(r.PARTITIONS.read_text(encoding="utf-8")))
     assert r.strip_source(r.render(document)) == r.strip_source(r.OUTPUT.read_text(encoding="utf-8"))
+
+
+def test_self_check_holds_the_values_to_what_partitions_json_publishes(tmp_path):
+    partitions = tmp_path / "partitions.json"
+    partitions.write_text(json.dumps(PARTITIONS))
+    tf, cdk = write_sources(tmp_path)
+    good = r.build(tf, cdk, PARTITIONS)
+    output = tmp_path / "region-facts.json"
+
+    def problems(mutate):
+        document = json.loads(json.dumps(good))
+        mutate(document)
+        output.write_text(json.dumps(document))
+        return r.self_check(output, partitions)
+
+    assert problems(lambda d: None) == []
+    # ap-southeast-1's NLB zone is twelve characters; real zone ids run from twelve to twenty-one
+    region = next(iter(good["regions"]))
+    assert problems(lambda d: d["regions"][region].update(nlbHostedZoneId="ZKVM4W9LS7TM")) == []
+    assert problems(lambda d: d["regions"][region].update(nlbHostedZoneId="nope"))
+    assert problems(lambda d: d["regions"].update({"xx-nowhere-1": {}}))
+    partition = next(iter(good["partitions"]))
+    assert problems(lambda d: d["partitions"][partition].update(vpcEndpointServiceNamePrefix="com.example.vpce"))
+    assert problems(lambda d: d["partitions"][partition].update(samlSignOnUrl="http://signin.example/saml"))
+    assert problems(lambda d: d["partitions"].pop(partition))
