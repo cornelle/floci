@@ -171,14 +171,21 @@ partition-audit: ## Print the per-package table of remaining partition literals
 partition-test: ## Run the partition tooling's unit tests
 	$(PYTHON) -m pytest tools/partition -q
 
-aws-data-sync: ## Regenerate src/main/resources/aws/partitions.json from botocore (commit the result)
+aws-data-sync: ## Regenerate src/main/resources/aws/*.json from botocore, the CDK and Terraform (commit the result)
 	$(PYTHON) tools/aws/regen_partitions.py
+	$(PYTHON) tools/aws/regen_region_facts.py
 
 aws-data-check: ## CI gate: the vendored partition data must match a fresh generation
 	@$(PYTHON) tools/aws/regen_partitions.py --check || { \
 		echo ""; \
 		echo "error: src/main/resources/aws/partitions.json is out of date."; \
 		echo "       Run 'make aws-data-sync' and commit the result."; \
+		exit 1; \
+	}
+	@$(PYTHON) tools/aws/regen_region_facts.py --check || { \
+		echo ""; \
+		echo "error: src/main/resources/aws/region-facts.json is out of date or malformed."; \
+		echo "       Run 'make aws-data-sync' with local/aws checked out and commit the result."; \
 		exit 1; \
 	}
 

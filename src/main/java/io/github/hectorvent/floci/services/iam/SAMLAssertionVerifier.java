@@ -1,6 +1,7 @@
 package io.github.hectorvent.floci.services.iam;
 
 import io.github.hectorvent.floci.core.common.AwsArnUtils;
+import io.github.hectorvent.floci.core.common.AwsRegionFacts;
 import io.github.hectorvent.floci.services.iam.model.SAMLProvider;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -130,7 +131,8 @@ final class SAMLAssertionVerifier {
                 }
                 String recipient = confirmationData.getAttribute("Recipient");
                 Instant confirmationExpiry = instant(confirmationData.getAttribute("NotOnOrAfter"));
-                if ("https://signin.aws.amazon.com/saml".equals(recipient)
+                if (AwsRegionFacts.samlSignOnUrl(AwsArnUtils.parse(provider.getArn()).partition())
+                        .filter(recipient::equals).isPresent()
                         && confirmationExpiry != null && now.isBefore(confirmationExpiry)) {
                     validBearer = true;
                     break;

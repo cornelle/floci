@@ -9,6 +9,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.util.List;
+
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
@@ -79,6 +81,19 @@ class PartitionRegionGatesIntegrationTest {
             .body("{\"Name\":\"" + name + "\",\"Scope\":\"CLOUDFRONT\",\"Id\":\"" + id + "\",\"LockToken\":\"" + lockToken + "\"}")
         .when().post("/"));
         assertTrue(arn.startsWith("arn:aws-cn:wafv2:cn-northwest-1:000000000000:global/ipset/" + name + "/"), arn);
+    }
+
+    /** The AWS-owned gateway prefix lists carry the China service-name prefix for S3, but not for DynamoDB. */
+    @Test
+    void managedPrefixListsUseThePartitionsVpcEndpointServiceNames() {
+        List<String> names = given()
+            .header("Authorization", PartitionMatrix.sigV4Auth("cn-north-1", "ec2"))
+            .formParam("Action", "DescribeManagedPrefixLists")
+            .formParam("Version", "2016-11-15")
+        .when().post("/").then().statusCode(200)
+            .extract().xmlPath().getList("DescribeManagedPrefixListsResponse.prefixListSet.item.prefixListName");
+        assertTrue(names.contains("cn.com.amazonaws.cn-north-1.s3"), names.toString());
+        assertTrue(names.contains("com.amazonaws.cn-north-1.dynamodb"), names.toString());
     }
 
     @Test

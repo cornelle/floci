@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.github.hectorvent.floci.config.EmulatorConfig;
 import io.github.hectorvent.floci.core.common.AwsArnUtils;
 import io.github.hectorvent.floci.core.common.AwsException;
+import io.github.hectorvent.floci.core.common.AwsRegionFacts;
 import io.github.hectorvent.floci.core.common.RegionResolver;
 import io.github.hectorvent.floci.core.common.SsrfProtection;
 import io.github.hectorvent.floci.core.common.dns.EmbeddedDnsServer;
@@ -50,8 +51,6 @@ public class ElbV2Service implements ResourceProvider {
 
     @Inject
     EmulatorConfig config;
-
-    private static final String CANONICAL_HOSTED_ZONE_ID = "Z35SXDOTRQ7X7K";
 
     // region → ARN → resource
     private Map<String, Map<String, LoadBalancer>> loadBalancers = new ConcurrentHashMap<>();
@@ -210,7 +209,7 @@ public class ElbV2Service implements ResourceProvider {
         LoadBalancer lb = new LoadBalancer();
         lb.setLoadBalancerArn(arn);
         lb.setDnsName(dnsName);
-        lb.setCanonicalHostedZoneId(CANONICAL_HOSTED_ZONE_ID);
+        lb.setCanonicalHostedZoneId(canonicalHostedZoneId(lbType, region));
         lb.setCreatedTime(Instant.now());
         lb.setLoadBalancerName(name);
         lb.setScheme(lbScheme);
@@ -1089,6 +1088,18 @@ public class ElbV2Service implements ResourceProvider {
 
     private static String randomHex16() {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+    }
+
+    /**
+     * Network load balancers have their own hosted zone per region, distinct from the one
+     * Application (and Classic) load balancers share; a gateway load balancer has none.
+     */
+    private static String canonicalHostedZoneId(String type, String region) {
+        return switch (type) {
+            case "network" -> AwsRegionFacts.nlbHostedZoneId(region).orElse(null);
+            case "gateway" -> null;
+            default -> AwsRegionFacts.albHostedZoneId(region).orElse(null);
+        };
     }
 
     private static String lbTypePrefix(String type) {

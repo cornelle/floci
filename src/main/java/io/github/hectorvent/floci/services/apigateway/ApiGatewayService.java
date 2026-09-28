@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.hectorvent.floci.config.EmulatorConfig;
 import io.github.hectorvent.floci.config.TlsCertificateManager;
 import io.github.hectorvent.floci.core.common.AwsException;
+import io.github.hectorvent.floci.core.common.AwsPartitions;
+import io.github.hectorvent.floci.core.common.AwsRegionFacts;
 import io.github.hectorvent.floci.core.common.ReservedTags;
 import io.github.hectorvent.floci.core.storage.StorageBackend;
 import io.github.hectorvent.floci.core.storage.StorageFactory;
@@ -1894,8 +1896,8 @@ public class ApiGatewayService {
         domain.setRegionalCertificateName((String) request.get("regionalCertificateName"));
         domain.setRegionalCertificateArn((String) request.get("regionalCertificateArn"));
         domain.setRegionalDomainName(domainName + ".regional.local");
-        domain.setRegionalHostedZoneId("Z2FDTNDATAQYL2");
-        applyEndpointType(domain, endpointType);
+        domain.setRegionalHostedZoneId("Z2FDTNDATAQYL2"); // partition-literal: no published per-region source for the regional zone
+        applyEndpointType(domain, endpointType, region);
         domain.setSecurityPolicy((String) request.getOrDefault("securityPolicy", "TLS_1_2"));
         // Nothing is provisioned behind the domain, so it is usable as soon as it exists.
         domain.setDomainNameStatus("AVAILABLE");
@@ -1927,7 +1929,7 @@ public class ApiGatewayService {
      * regional domain has none, so a move to {@code REGIONAL} drops the distribution again while a
      * move to {@code EDGE} puts one in front of the domain, as the migration does on AWS.
      */
-    private void applyEndpointType(CustomDomain domain, String endpointType) {
+    private void applyEndpointType(CustomDomain domain, String endpointType, String region) {
         domain.setEndpointConfigurationType(endpointType);
         if (!"EDGE".equals(endpointType)) {
             domain.setDistributionDomainName(null);
@@ -1936,7 +1938,8 @@ public class ApiGatewayService {
             domain.setDistributionDomainName(
                     "d" + UUID.randomUUID().toString().replace("-", "").substring(0, 13) + "."
                             + config.services().cloudfront().domainSuffix());
-            domain.setDistributionHostedZoneId("Z2FDTNDATAQYW2");
+            domain.setDistributionHostedZoneId(AwsRegionFacts.cloudFrontHostedZoneId(
+                    AwsPartitions.forRegionOrCommercial(region).id()).orElse(null));
         }
     }
 
@@ -2055,7 +2058,7 @@ public class ApiGatewayService {
         domain.setRegionalCertificateName(newRegionalCertificateName);
         domain.setRegionalCertificateArn(newRegionalCertificateArn);
         domain.setSecurityPolicy(newSecurityPolicy);
-        applyEndpointType(domain, newEndpointConfigurationType);
+        applyEndpointType(domain, newEndpointConfigurationType, region);
         domainStore.put(domainKey, domain);
         return domain;
     }

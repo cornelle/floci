@@ -78,6 +78,17 @@ did before.
   (`IllegalLocationConstraintException` otherwise). A China or GovCloud client must send the
   constraint, which the AWS SDKs do; `GetBucketLocation` still answers an empty constraint only
   for `us-east-1`, in every partition.
+- **Hosted zones and console URLs**: load balancer and S3 website hosted zone ids come from a
+  per-region table (`aws/region-facts.json`, generated from the Terraform provider and the CDK,
+  which transcribe the AWS General Reference); Network load balancers have their own zone,
+  distinct from the Application/Classic one. The CloudFront hosted zone is published for `aws`
+  and `aws-cn`; the SAML sign-on URL for five partitions. Where a table has no row (the ISO and
+  EUSC regions) the field is omitted rather than guessed.
+- **VPC endpoint service names**: `com.amazonaws.<region>.<service>` everywhere, except the
+  (region, service) pairs the CDK lists for China, ISO and EUSC, which reverse the DNS suffix
+  (`cn.com.amazonaws.cn-north-1.s3`). GovCloud keeps `com.amazonaws`.
+- **Lambda runtime images** pull from ECR Public (`public.ecr.aws`), which exists only in the
+  commercial partition; point `FLOCI_SERVICES_LAMBDA_ECR_BASE_URI` at a mirror elsewhere.
 - **WAF `CLOUDFRONT` scope**: available only where CloudFront exists (`aws`, `aws-cn`), and its
   resources live in the partition's implicit global region (`cn-northwest-1` in China).
 
