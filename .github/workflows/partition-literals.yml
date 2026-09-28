@@ -64,7 +64,7 @@ jobs:
         run: make partition-audit
 
   aws-data:
-    name: Vendored partition data in sync
+    name: Vendored AWS data in sync
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -83,3 +83,15 @@ jobs:
 
       - name: Check partitions.json against a fresh generation
         run: make aws-data-check
+
+      - name: Check the vendored IAM namespace list is well-formed
+        run: make iam-namespaces-check
+
+      # Needs the network, unlike everything above it: the IAM namespace list comes from a live
+      # AWS index rather than a pinned dependency, so the only way to know nothing in the vendored
+      # file is invented is to ask AWS. A namespace AWS does not publish fails the build; one it
+      # has added since the last sync is reported without failing, because being behind makes the
+      # report incomplete rather than wrong.
+      - name: Check every vendored IAM namespace still exists upstream
+        run: make iam-namespaces-verify
+

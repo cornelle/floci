@@ -1,0 +1,44 @@
+name: IAM Namespace Drift
+
+# The vendored IAM service namespace list goes stale because AWS ships services, not because
+# anyone opens a pull request. Checking it only on PRs that touch tools/aws or the vendored file
+# means a quiet month is a month with no drift detection at all, so this runs on its own schedule.
+#
+# Failure here is not a defect in the repository's code: it means the vendored file now claims a
+# namespace AWS no longer publishes, and the fix is to run `make iam-namespaces-sync` and commit
+# the result. A namespace AWS has *added* is reported without failing, because being behind makes
+# the service-last-accessed report incomplete rather than wrong.
+#
+# The equivalent offline checks run per pull request inside the "Vendored AWS data in sync" job in
+# partition-literals.yml; this adds no pull-request check of its own.
+
+on:
+  schedule:
+    # Mondays at 06:00 UTC, before the working week rather than during it.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  iam-namespaces-drift:
+    name: Vendored IAM namespaces still exist upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.x"
+
+      # Reaches AWS's live service reference index, so this is the one check here that can fail
+      # without anything in the repository having changed.
+      - name: Check every vendored IAM namespace still exists upstream
+        run: make iam-namespaces-verify
