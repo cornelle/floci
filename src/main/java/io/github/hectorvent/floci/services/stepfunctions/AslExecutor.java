@@ -1124,7 +1124,12 @@ public class AslExecutor {
 
             byte[] payloadBytes = objectMapper.writeValueAsString(lambdaPayload).getBytes();
             reportCustomResourceLiveness(payloadBytes);
-            InvokeResult result = lambdaExecutor.invoke(fn, payloadBytes, InvocationType.RequestResponse);
+            InvokeResult result;
+            try {
+                result = lambdaExecutor.invoke(fn, payloadBytes, InvocationType.RequestResponse);
+            } catch (AwsException e) {
+                throw new FailStateException("Lambda." + e.getErrorCode(), e.getMessage());
+            }
 
             if (result.getFunctionError() != null) {
                 throw lambdaFunctionFailure(functionName, result);
